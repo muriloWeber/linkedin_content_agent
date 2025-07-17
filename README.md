@@ -2,6 +2,8 @@
 
 ![LinkedIn Content Agent Banner](images/tres-agentes-de-ia-525.webp)
 
+[![Status do Projeto](https://img.shields.io/badge/Status-Em%20Desenvolvimento-yellow.svg)](https://github.com/muriloWeber/linkedin_content_agent/blob/main/README.md)
+
 Este projeto demonstra a automação inteligente da criação e postagem de conteúdo profissional no LinkedIn, focando em temas como **Ciência de Dados, CRM e Inteligência Artificial**.
 
 ---
