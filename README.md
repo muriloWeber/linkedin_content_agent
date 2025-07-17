@@ -1,7 +1,6 @@
 # 🤖 Agente de IA para Geração de Conteúdo no LinkedIn
 
-![LinkedIn Content Agent Banner](https://i.imgur.com/your_banner_image.png)
-*(Substitua esta URL por uma imagem/banner do seu projeto depois, se quiser!)*
+![LinkedIn Content Agent Banner](images/tres-agentes-de-ia-525.webp)
 
 Este projeto demonstra a automação inteligente da criação e postagem de conteúdo profissional no LinkedIn, focando em temas como **Ciência de Dados, CRM e Inteligência Artificial**.
 
