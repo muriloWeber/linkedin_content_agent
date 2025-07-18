@@ -41,7 +41,7 @@ Siga os passos abaixo para configurar e rodar o projeto em sua máquina:
 
 1.  **Clone o Repositório:**
     ```bash
-    git clone [https://github.com/seu-usuario/linkedin_content_agent.git](https://github.com/muriloWeber/linkedin_content_agent.git)
+    git clone [https://github.com/muriloWeber/linkedin_content_agent.git](https://github.com/muriloWeber/linkedin_content_agent.git)
     cd linkedin_content_agent
     ```
 2.  **Crie e Ative o Ambiente Virtual:**
@@ -70,6 +70,55 @@ Siga os passos abaixo para configurar e rodar o projeto em sua máquina:
     A API estará acessível em `http://127.0.0.1:8000`.
 6.  **Teste a API:**
     * Abra `http://127.0.0.1:8000/docs` no seu navegador para acessar a documentação interativa (Swagger UI) e testar o endpoint `/generate_linkedin_post`.
+
+---
+
+## 🚧 Desafios de Configuração e Soluções (LangChain Agent)
+
+Durante o desenvolvimento e configuração deste agente, foram encontrados alguns desafios específicos relacionados à integração do LangChain com o `MessagesPlaceholder` e o tratamento do `agent_scratchpad`. As seguintes soluções foram aplicadas para garantir o funcionamento correto:
+
+### 1. Erro `ValueError: Prompt missing required variables: {'tool_names'}`
+
+* **Problema:** O `create_react_agent` exigia que a variável `tool_names` estivesse explicitamente presente no `ChatPromptTemplate` para que o LLM soubesse os nomes das ferramentas disponíveis.
+* **Solução:** Adicionada a linha `{tool_names}` ao prompt do sistema no `src/main.py`.
+
+    ```python
+    # Exemplo do prompt ajustado:
+    # "Use as ferramentas a seguir apenas se elas forem úteis para responder à pergunta. Os nomes das ferramentas que você pode usar são: {tool_names}."
+    ```
+
+### 2. Erro `variable agent_scratchpad should be a list of base messages, got of type <class 'str'>`
+
+* **Problema:** O `MessagesPlaceholder` no prompt do agente esperava uma lista de objetos de mensagem (`BaseMessage`), mas o `agent_scratchpad` estava sendo interpretado como uma string em certas interações, causando um erro de tipagem.
+* **Solução:** Configurado o `AgentExecutor` para usar `format_log_to_messages` no parâmetro `agent_scratchpad_tool_executor`. Esta função garante que o histórico de pensamentos do agente seja formatado corretamente como uma lista de mensagens.
+
+    ```python
+    # Importação necessária:
+    # from langchain.agents.format_scratchpad import format_log_to_messages
+
+    # Configuração do AgentExecutor:
+    # agent_executor = AgentExecutor(
+    #     agent=agent,
+    #     tools=tools,
+    #     verbose=True,
+    #     handle_parsing_errors=True,
+    #     agent_scratchpad_tool_executor=format_log_to_messages
+    # )
+    ```
+    *Nota:* Tentativas anteriores de usar `render_text_to_messages` ou passar `agent_scratchpad: []` diretamente no `ainvoke` não foram eficazes ou causaram outros erros de importação/tipagem, sendo a configuração do `agent_scratchpad_tool_executor` a abordagem mais robusta para este cenário.
+
+### Versões das Dependências (Recomendadas/Testadas)
+
+Para garantir a compatibilidade, as seguintes versões das bibliotecas foram testadas ou são recomendadas:
+
+* **Python:** 3.13.x (embora 3.10 ou 3.11 possam ter maior compatibilidade histórica com LangChain)
+* **langchain:** (Adicione aqui a versão exata que você tem, ex: `0.1.17`)
+* **langchain-google-genai:** (Adicione aqui a versão exata que você tem, ex: `0.0.10`)
+* **pydantic:** (Adicione aqui a versão exata que você tem, ex: `2.7.1`)
+* **fastapi:** (Adicione aqui a versão exata que você tem, ex: `0.110.0`)
+* **uvicorn:** (Adicione aqui a versão exata que você tem, ex: `0.29.0`)
+
+Você pode obter as versões exatas executando `pip show <nome_da_biblioteca>` no seu ambiente virtual.
 
 ---
 
