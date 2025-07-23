@@ -26,15 +26,24 @@ app = FastAPI(
     version="0.9.5"
 )
 
-# Verifica a chave da API do Google
-if not os.getenv("GOOGLE_API_KEY"):
-    raise ValueError("A variável de ambiente GOOGLE_API_KEY não está configurada. Por favor, adicione-a em config/.env")
+# Verifica a chave da API do Google e configurações de SMTP
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_PORT = os.getenv("SMTP_PORT")
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
-# Configurações de e-mail
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-SMTP_USER = os.getenv("SMTP_USER", "caboeb@gmail.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "sua_senha_aqui")
+# Valida as variáveis de ambiente
+if not GOOGLE_API_KEY:
+    raise ValueError("A variável de ambiente GOOGLE_API_KEY não está configurada. Por favor, adicione-a em config/.env")
+if not all([SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD]):
+    raise ValueError("Uma ou mais variáveis de ambiente SMTP (SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD) não estão configuradas. Por favor, adicione-as em config/.env")
+
+# Converte SMTP_PORT para inteiro
+try:
+    SMTP_PORT = int(SMTP_PORT)
+except ValueError:
+    raise ValueError("SMTP_PORT deve ser um número inteiro válido. Verifique o arquivo config/.env")
 
 # --- Modelos Pydantic ---
 class GeneratePostRequest(BaseModel):
@@ -158,12 +167,12 @@ def send_post_for_approval(agent: Agent, post: PostResponse, session_id: str) ->
         """)
         msg['Subject'] = f"Novo Post LinkedIn - {post.title}"
         msg['From'] = SMTP_USER
-        msg['To'] = "caboeb@gmail.com"
+        msg['To'] = SMTP_USER
 
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_USER, "caboeb@gmail.com", msg.as_string())
+            server.sendmail(SMTP_USER, SMTP_USER, msg.as_string())
         return "E-mail de aprovação enviado com sucesso!"
     except Exception as e:
         return f"Erro ao enviar e-mail: {e}"
@@ -300,13 +309,19 @@ async def generate_post(request: GeneratePostRequest):
                 continue
             # Fallback em caso de falha após todas as tentativas
             print(f"Falha após {max_retries} tentativas. Usando post padrão.")
+            conn = sqlite3.connect("tmp/linkedin.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT topic FROM topics ORDER BY usage_count ASC LIMIT 1")
+            topic = cursor.fetchone()
+            conn.close()
+            fallback_topic = topic[0] if topic else request.topic
             post_data = {
-                "title": f"Post sobre {request.topic}",
-                "content": f"Conteúdo de exemplo sobre {request.topic}. {request.call_to_action}",
+                "title": f"Post sobre {fallback_topic}",
+                "content": f"Conteúdo de exemplo sobre {fallback_topic}. {request.call_to_action}",
                 "hashtags": ["#IA", "#CRM", "#CiênciaDeDados"],
                 "status": "pending"
             }
-            post_id = save_post_to_db(request.topic, post_data, request.session_id)
+            post_id = save_post_to_db(fallback_topic, post_data, request.session_id)
             post = PostResponse(id=post_id, created_at=datetime.datetime.now().isoformat(), **post_data)
             
             # Envia para aprovação (usando entrypoint diretamente)
