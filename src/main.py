@@ -23,7 +23,7 @@ load_dotenv(dotenv_path="../config/.env")
 app = FastAPI(
     title="Agente de Conteúdo para LinkedIn",
     description="API para gerar posts de LinkedIn sobre Ciência de Dados, CRM e IA, com testes via Swagger UI e aprovação por e-mail.",
-    version="0.9.5"
+    version="0.9.6"
 )
 
 # Verifica a chave da API do Google e configurações de SMTP
@@ -49,9 +49,9 @@ except ValueError:
 class GeneratePostRequest(BaseModel):
     topic: str = "Um tópico relevante sobre Ciência de Dados, CRM ou IA."
     tone: str = "profissional e direto"
-    length: int = 1000  # Caracteres
+    length: int = 1500  # Atualizado para refletir o tamanho do post exemplo
     call_to_action: str = "O que você acha? Compartilhe sua opinião!"
-    session_id: str = "default_session"  # Para persistência de sessões
+    session_id: str = "default_session"
 
 class PostResponse(BaseModel):
     id: int
@@ -207,9 +207,16 @@ approval_agent = Agent(
     model=Gemini(id="gemini-1.5-flash"),
     description="Você é um assistente especializado em gerar posts para LinkedIn e gerenciar aprovação.",
     instructions=dedent("""\
-        Sua tarefa é gerar um post para LinkedIn com base no tópico fornecido, com tom {tone}, aproximadamente {length} caracteres, e incluir o call-to-action: '{call_to_action}'.
-        Adicione 3-5 hashtags relevantes.
-        Após gerar o post, use a ferramenta `send_post_for_approval` para enviar para aprovação por e-mail.
+        Sua tarefa é gerar um post para LinkedIn com base no tópico fornecido: '{topic}'.
+        Siga este formato para criar um post profissional e estratégico, com tom {tone} e aproximadamente {length} caracteres:
+        
+        1. **Introdução com gancho**: Comece com uma pergunta ou cenário envolvente que conecte com as dores ou interesses de gestores de negócios.
+        2. **Contexto estratégico**: Explique por que o tópico é relevante, destacando benefícios como aumento de receita, redução de custos ou melhoria na tomada de decisão.
+        3. **Explicação prática**: Forneça um guia claro (ex.: passos, fórmula, checklist) para aplicar o conceito, com exemplos concretos (ex.: "Redução de 30% no tempo de análise").
+        4. **Exemplos de impacto**: Inclua 2-3 exemplos de resultados mensuráveis (ex.: percentuais de melhoria, economia financeira).
+        5. **Chamada à ação (CTA)**: Finalize com a CTA fornecida ('{call_to_action}') e um tom de continuidade (ex.: "Nos vemos na próxima semana!").
+        
+        Use parágrafos curtos, subtítulos em markdown (##) e linguagem clara. Inclua 3-5 hashtags relevantes baseadas no tópico (ex.: #IA, #ROI, #Automação).
         Retorne o post no formato JSON com os campos: id, title, content, hashtags, status.
     """),
     tools=[send_post_for_approval],
@@ -285,9 +292,29 @@ async def generate_post(request: GeneratePostRequest):
             
             # Extrai o post gerado
             post_data = json.loads(response.content) if response.content else {
-                "title": f"Post sobre {request.topic}",
-                "content": f"Conteúdo de exemplo sobre {request.topic}. {request.call_to_action}",
-                "hashtags": ["#IA", "#CRM", "#CiênciaDeDados"],
+                "title": f"Como aproveitar {request.topic} em 2025",
+                "content": dedent(f"""\
+                    ## Imagine o potencial de {request.topic} para sua empresa
+                    
+                    E se você pudesse transformar seus processos com {request.topic}? A pergunta que todo gestor faz é: como isso impacta meu negócio?
+                    
+                    ## Por que {request.topic} é estratégico?
+                    Em 2025, {request.topic} está revolucionando empresas ao aumentar receita, reduzir custos e otimizar decisões. É a chave para se manter competitivo.
+                    
+                    ## Como implementar de forma prática
+                    1. **Defina KPIs claros**: Foque em métricas como conversão ou eficiência.
+                    2. **Teste com um MVP**: Implemente uma solução inicial para validar resultados.
+                    3. **Meça o impacto**: Use ROI = [(Ganho - Custo) / Custo] x 100.
+                    
+                    ## Exemplos de sucesso
+                    - Redução de 30% no tempo de processos com {request.topic}.
+                    - Aumento de 25% na conversão de vendas com automação.
+                    - Economia de R$ 200 mil/ano com otimização de recursos.
+                    
+                    ## Hora de agir
+                    {request.call_to_action} Vamos conversar sobre como {request.topic} pode transformar seu negócio? Nos vemos na próxima semana!
+                """),
+                "hashtags": ["#IA", "#CRM", "#CiênciaDeDados", "#Automação", "#Inovação"],
                 "status": "pending"
             }
             post_id = save_post_to_db(request.topic, post_data, request.session_id)
@@ -316,15 +343,35 @@ async def generate_post(request: GeneratePostRequest):
             conn.close()
             fallback_topic = topic[0] if topic else request.topic
             post_data = {
-                "title": f"Post sobre {fallback_topic}",
-                "content": f"Conteúdo de exemplo sobre {fallback_topic}. {request.call_to_action}",
-                "hashtags": ["#IA", "#CRM", "#CiênciaDeDados"],
+                "title": f"Como aproveitar {fallback_topic} em 2025",
+                "content": dedent(f"""\
+                    ## Imagine o potencial de {fallback_topic} para sua empresa
+                    
+                    E se você pudesse transformar seus processos com {fallback_topic}? A pergunta que todo gestor faz é: como isso impacta meu negócio?
+                    
+                    ## Por que {fallback_topic} é estratégico?
+                    Em 2025, {fallback_topic} está revolucionando empresas ao aumentar receita, reduzir custos e otimizar decisões. É a chave para se manter competitivo.
+                    
+                    ## Como implementar de forma prática
+                    1. **Defina KPIs claros**: Foque em métricas como conversão ou eficiência.
+                    2. **Teste com um MVP**: Implemente uma solução inicial para validar resultados.
+                    3. **Meça o impacto**: Use ROI = [(Ganho - Custo) / Custo] x 100.
+                    
+                    ## Exemplos de sucesso
+                    - Redução de 30% no tempo de processos com {fallback_topic}.
+                    - Aumento de 25% na conversão de vendas com automação.
+                    - Economia de R$ 200 mil/ano com otimização de recursos.
+                    
+                    ## Hora de agir
+                    {request.call_to_action} Vamos conversar sobre como {fallback_topic} pode transformar seu negócio? Nos vemos na próxima semana!
+                """),
+                "hashtags": ["#IA", "#CRM", "#CiênciaDeDados", "#Automação", "#Inovação"],
                 "status": "pending"
             }
             post_id = save_post_to_db(fallback_topic, post_data, request.session_id)
             post = PostResponse(id=post_id, created_at=datetime.datetime.now().isoformat(), **post_data)
             
-            # Envia para aprovação (usando entrypoint diretamente)
+            # Envia para aprovação
             approval_result = send_post_for_approval.entrypoint(agent=approval_agent, post=post, session_id=request.session_id)
             print(f"Resultado da aprovação: {approval_result}")
             
